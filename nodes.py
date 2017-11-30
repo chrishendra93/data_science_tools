@@ -7,7 +7,7 @@ class Nodes(object):
 
     ''' A node is a representation of a random variable together with its pars'''
 
-    def __init__(self, X, feature_name, feature_type='c', par_features=[], par_types=[]):
+    def __init__(self, X, features, preprocessed_results, features_type=[]):
 
         '''par_types are either empty, c (continuous) or d (discrete)'''
         ''' X are training data in the form of data frame'''

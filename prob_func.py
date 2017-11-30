@@ -122,11 +122,11 @@ class ProbFunc(object):
 
 
 if __name__ == '__main__':
-    from preprocessed_results_manager import PreprocessedResults
+    from intermediate_results import IntermediateResults
     ''' demo multiple discrete and continuous vars '''
     test = pd.DataFrame({"a": np.arange(9), "b": [0 if i < 5 else 1 for i in range(9)],
                          "c": np.random.randn(9)})
-    prep_res = PreprocessedResults(test)
+    prep_res = IntermediateResults(test)
     probfunc = ProbFunc(test, ["a", "b", "c"], prep_res, {"a": "c", "b": "d"})
     print probfunc.features
     print probfunc.discrete_features
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     print "---------------------------"
     test = pd.DataFrame({"a": np.arange(9), "b": [0 if i < 5 else 1 for i in range(9)],
                          "c": np.random.randn(9), "d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
-    prep_res = PreprocessedResults(test)
+    prep_res = IntermediateResults(test)
     probfunc = ProbFunc(test, ["a", "b", "c", "d"], prep_res, {"a": "c", "b": "d", "d": "d"})
     print probfunc.features
     print probfunc.discrete_features
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     print probfunc.evaluate_ll(test, [0, 1])
     print "---------------------------"
     test = pd.DataFrame({"d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
-    prep_res = PreprocessedResults(test)
+    prep_res = IntermediateResults(test)
     probfunc = ProbFunc(test, ["d"], prep_res, {"d": "d"})
     print probfunc.features
     print probfunc.discrete_features
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     print "---------------------------"
     test = pd.DataFrame({"a": np.arange(9),
                          "c": np.random.randn(9)})
-    prep_res = PreprocessedResults(test)
+    prep_res = IntermediateResults(test)
     probfunc = ProbFunc(test, ["a", "c"], prep_res, {"a": "c"})
     print probfunc.features
     print probfunc.discrete_features
