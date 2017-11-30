@@ -5,7 +5,7 @@ from scipy.stats import gaussian_kde
 
 class ProbFunc(object):
 
-    def __init__(self, X, features, preprocessed_results, features_type=[]):
+    def __init__(self, X, features, intermediate_results, features_type=[]):
 
         ''' prob func evaluates joint distribution of variables '''
         ''' three types of probfunc, mixed, discrete, continuous '''
@@ -13,7 +13,7 @@ class ProbFunc(object):
         ''' c is continuous and d is discrete'''
 
         self.training_df = X
-        self.preprocessed_results = preprocessed_results
+        self.intermediate_results = intermediate_results
 
         self.features = self.features_reorder(features)
 
@@ -70,21 +70,21 @@ class ProbFunc(object):
         if self.type == 'c':
             self.joint_dist = self.fit_gaussian_kde(self.training_df)
         elif self.type == 'd':
-            grouped_df = self.preprocessed_results.retrieve_groups(self.features)
+            grouped_df = self.intermediate_results.retrieve_groups(self.features)
             for group, df in grouped_df:
                 prob = len(df) / float(len(self.training_df))
                 self.joint_dist[group] = prob
         else:
             ''' the key for the joint distribution will be a tuple of the parent values'''
             ''' while the values will be a tuple of the probability and the kde of the continuous variables'''
-            grouped_df = self.preprocessed_results.retrieve_groups(self.discrete_features)
+            grouped_df = self.intermediate_results.retrieve_groups(self.discrete_features)
             for group, df in grouped_df:
                 X = df[self.continuous_features]
                 kde = self.fit_gaussian_kde(X)
                 prob = len(df) / float(len(self.training_df))
                 self.joint_dist[group] = (prob, kde)
 
-    def evaluate_ll(self, X, discrete_val=-1):
+    def compute_ll(self, X, discrete_val=-1):
         if self.type == 'c':
             return self.joint_dist.logpdf(X.values.T)
         else:
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     print probfunc.type
     probfunc.fit()
     print probfunc.joint_dist
-    print probfunc.evaluate_ll(test)
+    print probfunc.compute_ll(test)
     print "---------------------------"
     test = pd.DataFrame({"a": np.arange(9), "b": [0 if i < 5 else 1 for i in range(9)],
                          "c": np.random.randn(9), "d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
@@ -148,8 +148,8 @@ if __name__ == '__main__':
     print probfunc.type
     probfunc.fit()
     print probfunc.joint_dist
-    print probfunc.evaluate_ll(test)
-    print probfunc.evaluate_ll(test, [0, 1])
+    print probfunc.compute_ll(test)
+    print probfunc.compute_ll(test, [0, 1])
     print "---------------------------"
     test = pd.DataFrame({"d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
     prep_res = IntermediateResults(test)
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     print probfunc.type
     probfunc.fit()
     print probfunc.joint_dist
-    print probfunc.evaluate_ll(test)
+    print probfunc.compute_ll(test)
     print "---------------------------"
     test = pd.DataFrame({"a": np.arange(9),
                          "c": np.random.randn(9)})
@@ -174,5 +174,5 @@ if __name__ == '__main__':
     print probfunc.type
     probfunc.fit()
     print probfunc.joint_dist
-    print probfunc.evaluate_ll(test)
+    print probfunc.compute_ll(test)
     print "---------------------------"
