@@ -30,8 +30,10 @@ class Node(object):
 
     def fit(self):
         self.par_dist = ProbFunc(self.training_df, self.feature_parents, self.intermediate_results, self.features_type)
-        self.joint_dist = ProbFunc(self.training_df, self.feature_parents + self.feature_name, self.intermediate_results,
+        self.joint_dist = ProbFunc(self.training_df, self.feature_parents + [self.feature_name], self.intermediate_results,
                                    self.features_type)
+        self.par_dist.fit()
+        self.joint_dist.fit()
 
     def compute_ll(self, X, discrete_val=-1):
         return self.joint_dist.compute_ll(X, discrete_val) - self.par_dist.compute_ll(X, discrete_val)
