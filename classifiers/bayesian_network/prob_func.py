@@ -165,7 +165,7 @@ if __name__ == '__main__':
     probfunc.fit()
     print probfunc.joint_dist
     print probfunc.compute_ll(test)
-    print probfunc.compute_ll(test, [0, 1])
+    print probfunc.compute_ll(test)
     print probfunc.sample(2)
     print "---------------------------"
     test = pd.DataFrame({"d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})

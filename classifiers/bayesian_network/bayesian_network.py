@@ -1,5 +1,5 @@
 import numpy as np
-from classifiers.bayesian_network.nodes import Node
+from classifiers.bayesian_network.node import Node
 from classifiers.bayesian_network.intermediate_results import IntermediateResults
 
 
