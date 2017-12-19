@@ -7,7 +7,7 @@ class IntermediateResults(object):
     def _compute_dependency(func):
         def compute(self, *args, **kwargs):
             if func.__name__ + str(*args) in self.intermediate_results:
-                return self.intermediate_results[func.__name__]
+                return self.intermediate_results[func.__name__ + str(*args)]
             else:
                 res = func(self, *args, **kwargs)
                 self.intermediate_results[func.__name__ + str(*args)] = res
