@@ -33,6 +33,13 @@ class Node(object):
         self.joint_dist = ProbFunc(self.training_df, self.feature_parents + self.feature_name, self.intermediate_results,
                                    self.features_type)
 
+    def compute_mi(self):
+        '''compute I(feature; parents)'''
+        return
+
+    def compute_conditional_mi(self):
+        return
+
     def compute_ll(self, X, discrete_val=-1):
         return self.joint_dist.compute_ll(X, discrete_val) - self.par_dist.compute_ll(X, discrete_val)
 

@@ -84,11 +84,11 @@ class ProbFunc(object):
                 prob = len(df) / float(len(self.training_df))
                 self.joint_dist[group] = (prob, kde)
 
-    def compute_ll(self, X, discrete_val=-1):
+    def compute_ll(self, X, discrete_val=None):
         if self.type == 'c':
             return self.joint_dist.logpdf(X.values.T)
         else:
-            if discrete_val != -1:
+            if discrete_val:
                 ''' a fix single discrete value is assign for computation '''
                 ''' expect a list of discrete values if one or more discrete values are intended '''
                 ''' i.e, [1,2,3]'''
@@ -119,6 +119,29 @@ class ProbFunc(object):
                         res.append(pd.Series(ll, index=idx))
 
                     return pd.concat(res).sort_index()
+
+    def sample(self, n_samples=1000):
+        samples = []
+        if self.type == 'c':
+            samples = self.joint_dist.resample(n_samples)
+        elif self.type == 'd':
+            groups = np.array(self.joint_dist.keys())
+            probs = np.array(self.joint_dist.values())
+            idx = np.arange(len(probs))
+            rand_indx = np.random.choice(idx, size=n_samples, p=probs)
+            samples = groups[rand_indx]
+        else:
+            '''we sample discrete values then we sample from the conditional distribution of the'''
+            '''continuous functions. i.e, if X is continuous and Y is discrete, then we sample Y '''
+            '''from P(Y) then sample X from f(X|Y)'''
+            groups = np.array(self.joint_dist.keys())
+            probs = np.array([x[0] for x in self.joint_dist.values()])
+            idx = np.arange(len(probs))
+            rand_indx = np.random.choice(idx, size=n_samples, p=probs)
+            disc_samples = groups[rand_indx]
+            cont_samples = np.array([self.joint_dist[group][1].resample(1) for group in disc_samples])
+            samples = []
+        return samples
 
 
 if __name__ == '__main__':
