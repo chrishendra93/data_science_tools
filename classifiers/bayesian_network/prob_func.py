@@ -21,7 +21,6 @@ class ProbFunc(object):
         self.discrete_features = []
         self.features = features
         self.discrete_partitions = {}
-
         if isinstance(features_type, dict):
             self.features_type = features_type
             for feature in features:
@@ -37,7 +36,7 @@ class ProbFunc(object):
 
         if not features_type:
             self.type = 'c'
-        elif len(np.unique(features_type.values())) > 1:
+        elif len(features) > 1 and len(np.unique(features_type.values())) > 1:
             self.type = 'm'
         else:
             self.type = features_type.values()[0]
@@ -84,52 +83,38 @@ class ProbFunc(object):
                 prob = len(df) / float(len(self.training_df))
                 self.joint_dist[group] = (prob, kde)
 
-    def compute_ll(self, X, discrete_val=None):
+    def compute_ll(self, X):
         if self.type == 'c':
             return self.joint_dist.logpdf(X.values.T)
         else:
-            if discrete_val:
-                ''' a fix single discrete value is assign for computation '''
-                ''' expect a list of discrete values if one or more discrete values are intended '''
-                ''' i.e, [1,2,3]'''
-                d_val = (discrete_val,) if not isinstance(discrete_val, list) else \
-                    tuple(discrete_val)
-
-                if self.type == 'd':
-                    return self.joint_dist[d_val]
-                else:
-                    prob = self.joint_dist[d_val][0]
-                    kde = self.joint_dist[d_val][1]
-                    return prob * kde.logpdf(X[self.continuous_features].values.T)
+            if len(self.discrete_features) == 1:
+                queries = X[self.discrete_features[0]]
             else:
-                if len(self.discrete_features) == 1:
-                    queries = X[self.discrete_features[0]]
-                else:
-                    queries = X[self.discrete_features].apply(lambda x: tuple(x), axis=1)
-                X = X.assign(queries=queries)
-                if self.type == 'd':
-                    return np.array([self.joint_dist[query] for query in X.queries])
-                else:
-                    grouped_X = X.groupby("queries")
-                    res = []
-                    for group, df in grouped_X:
-                        idx = df.index
-                        kde = self.joint_dist[group][1]
-                        ll = kde.logpdf(df[self.continuous_features].values.T)
-                        res.append(pd.Series(ll, index=idx))
+                queries = X[self.discrete_features].apply(lambda x: tuple(x), axis=1)
+            X = X.assign(queries=queries)
+            if self.type == 'd':
+                return np.array([self.joint_dist[query] for query in X.queries])
+            else:
+                grouped_X = X.groupby("queries")
+                res = []
+                for group, df in grouped_X:
+                    idx = df.index
+                    kde = self.joint_dist[group][1]
+                    ll = kde.logpdf(df[self.continuous_features].values.T)
+                    res.append(pd.Series(ll, index=idx))
 
-                    return pd.concat(res).sort_index()
+                return pd.concat(res).sort_index()
 
     def sample(self, n_samples=1000):
         samples = []
         if self.type == 'c':
-            samples = self.joint_dist.resample(n_samples)
+            samples = self.joint_dist.resample(n_samples).T
         elif self.type == 'd':
             groups = np.array(self.joint_dist.keys())
             probs = np.array(self.joint_dist.values())
             idx = np.arange(len(probs))
             rand_indx = np.random.choice(idx, size=n_samples, p=probs)
-            samples = groups[rand_indx]
+            samples = groups[rand_indx].T
         else:
             '''we sample discrete values then we sample from the conditional distribution of the'''
             '''continuous functions. i.e, if X is continuous and Y is discrete, then we sample Y '''
@@ -137,11 +122,19 @@ class ProbFunc(object):
             groups = np.array(self.joint_dist.keys())
             probs = np.array([x[0] for x in self.joint_dist.values()])
             idx = np.arange(len(probs))
-            rand_indx = np.random.choice(idx, size=n_samples, p=probs)
-            disc_samples = groups[rand_indx]
-            cont_samples = np.array([self.joint_dist[group][1].resample(1) for group in disc_samples])
-            samples = []
-        return samples
+            rand_idx = np.random.choice(idx, size=n_samples, p=probs)
+            disc_samples = groups[rand_idx]
+            cont_samples = np.array([self.joint_dist[tuple(group)][1].resample(1)
+                                    if len(self.discrete_features) > 1 else
+                                    self.joint_dist[group][1].resample(1) for group in disc_samples])
+            samples = np.append(disc_samples.reshape(-1, len(self.discrete_features)),
+                                cont_samples.reshape(-1, len(self.continuous_features)), axis=1)
+        sampled_df = pd.DataFrame(samples, columns=self.features)
+
+        if self.type == 'm':
+            sampled_df[self.discrete_features] = sampled_df[self.discrete_features].astype('int')
+
+        return sampled_df
 
 
 if __name__ == '__main__':
@@ -173,6 +166,7 @@ if __name__ == '__main__':
     print probfunc.joint_dist
     print probfunc.compute_ll(test)
     print probfunc.compute_ll(test, [0, 1])
+    print probfunc.sample(2)
     print "---------------------------"
     test = pd.DataFrame({"d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
     prep_res = IntermediateResults(test)
@@ -185,6 +179,7 @@ if __name__ == '__main__':
     probfunc.fit()
     print probfunc.joint_dist
     print probfunc.compute_ll(test)
+    print probfunc.sample(2)
     print "---------------------------"
     test = pd.DataFrame({"a": np.arange(9),
                          "c": np.random.randn(9)})
@@ -198,4 +193,5 @@ if __name__ == '__main__':
     probfunc.fit()
     print probfunc.joint_dist
     print probfunc.compute_ll(test)
+    print probfunc.sample(2)
     print "---------------------------"
