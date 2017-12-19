@@ -28,3 +28,12 @@ class ChowLiuTree(BayesianNetwork):
             node = Node(self.training_df, v1, v2, self.intermediate_results, self.features_type)
             edges.add((node.compute_mi(v1, v2), v1, v2))
         return vertices, edges
+
+
+if __name__ == '__main__':
+    import pandas as pd
+    import numpy as np
+    test_df = pd.DataFrame({"a":np.random.randn(30), "b": np.random.randn(30), "c": np.ones(30)})
+    X, y = test_df[["a", "b"]], test_df["c"]
+    c_tree = ChowLiuTree()
+    c_tree.fit(X, y)
