@@ -30,6 +30,7 @@ class BayesianNetwork(object):
             for var, par in self.graph.iteritems():
                 self.nodes[var] = Node(self.training_df, var, par, self.intermediate_results,
                                        self.features_type)
+                self.nodes[var].fit()
 
     def compute_entropy(self, X, n_samples=1000):
         dist = self.intermediate_results.retrieve_prob_func(X)

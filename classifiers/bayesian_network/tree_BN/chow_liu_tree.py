@@ -29,8 +29,6 @@ class ChowLiuTree(BayesianNetwork):
         edges = set()
         pairwise_features = list(combinations(self.features, 2))
         for v1, v2 in pairwise_features:
-            # node = Node(self.training_df, v1, [v2], self.intermediate_results, self.features_type)
-            # node.fit()
             edges.add((self.compute_mi([v1], [v2]), v1, v2))
         return vertices, edges
 

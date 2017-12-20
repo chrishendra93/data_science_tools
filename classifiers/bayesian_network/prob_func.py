@@ -11,6 +11,7 @@ class ProbFunc(object):
         ''' three types of probfunc, mixed, discrete, continuous '''
         ''' features_type is a dictionary of feature in features and its type, i.e c or d'''
         ''' c is continuous and d is discrete'''
+
         self.training_df = X[features]
         self.intermediate_results = intermediate_results
 
