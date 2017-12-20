@@ -27,5 +27,5 @@ def create_dependencies_dict(graph_dict, features, label_var):
     parents_list = {feature: [] for feature in features}
     for par, children in dag.iteritems():
         for child in children:
-            parents_list[child] = par
+            parents_list[child].append(par)
     return parents_list

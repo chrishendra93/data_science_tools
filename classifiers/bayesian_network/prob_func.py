@@ -11,8 +11,7 @@ class ProbFunc(object):
         ''' three types of probfunc, mixed, discrete, continuous '''
         ''' features_type is a dictionary of feature in features and its type, i.e c or d'''
         ''' c is continuous and d is discrete'''
-
-        self.training_df = X
+        self.training_df = X[features]
         self.intermediate_results = intermediate_results
 
         self.features = self.features_reorder(features)
@@ -34,9 +33,9 @@ class ProbFunc(object):
         else:
             self.continuous_features = features
 
-        if not features_type:
+        if len(features_type) == 0:
             self.type = 'c'
-        elif len(features) > 1 and len(np.unique(features_type.values())) > 1:
+        elif len(features) > 1 and len(set([self.features_type[feature] for feature in self.features])) > 1:
             self.type = 'm'
         else:
             self.type = features_type.values()[0]
@@ -83,7 +82,8 @@ class ProbFunc(object):
                 prob = len(df) / float(len(self.training_df))
                 self.joint_dist[group] = (prob, kde)
 
-    def compute_ll(self, X):
+    def compute_ll(self, obs):
+        X = obs[self.features]
         if self.type == 'c':
             return self.joint_dist.logpdf(X.values.T)
         else:
