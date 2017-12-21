@@ -25,7 +25,6 @@ class ProbFunc(object):
             self.features_type = features_type
             for feature in features:
                 if feature not in self.features_type:
-                    self.features_type[feature] = 'c'
                     self.continuous_features.append(feature)
                 elif self.features_type[feature] == 'c':
                     self.continuous_features.append(feature)
@@ -34,12 +33,12 @@ class ProbFunc(object):
         else:
             self.continuous_features = features
 
-        if len(features_type) == 0:
-            self.type = 'c'
-        elif len(features) > 1 and len(set([self.features_type[feature] for feature in self.features])) > 1:
+        if len(self.continuous_features) != 0 and len(self.discrete_features) != 0:
             self.type = 'm'
+        elif len(self.discrete_features) != 0:
+            self.type = 'd'
         else:
-            self.type = features_type.values()[0]
+            self.type = 'c'
 
         self.discrete_features = self.features_reorder(self.discrete_features)
         self.continuous_features = self.features_reorder(self.continuous_features)
