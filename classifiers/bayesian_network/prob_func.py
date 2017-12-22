@@ -108,14 +108,15 @@ class ProbFunc(object):
     def sample(self, n_samples=1000):
         samples = []
         if self.type == 'c':
-            samples = self.joint_dist.resample(n_samples).T
+            samples = self.joint_dist.resample(n_samples)
         elif self.type == 'd':
             groups = np.array(self.joint_dist.keys())
             probs = np.array(self.joint_dist.values())
             idx = np.arange(len(probs))
             rand_indx = np.random.choice(idx, size=n_samples, p=probs)
-            samples = groups[rand_indx].T
+            samples = groups[rand_indx]
         else:
+            '''perform ancestral sampling technique'''
             '''we sample discrete values then we sample from the conditional distribution of the'''
             '''continuous functions. i.e, if X is continuous and Y is discrete, then we sample Y '''
             '''from P(Y) then sample X from f(X|Y)'''
@@ -123,13 +124,14 @@ class ProbFunc(object):
             probs = np.array([x[0] for x in self.joint_dist.values()])
             idx = np.arange(len(probs))
             rand_idx = np.random.choice(idx, size=n_samples, p=probs)
-            disc_samples = groups[rand_idx]
-            cont_samples = np.array([self.joint_dist[tuple(group)][1].resample(1)
-                                    if len(self.discrete_features) > 1 else
-                                    self.joint_dist[group][1].resample(1) for group in disc_samples])
-            samples = np.append(disc_samples.reshape(-1, len(self.discrete_features)),
-                                cont_samples.reshape(-1, len(self.continuous_features)), axis=1)
-        sampled_df = pd.DataFrame(samples, columns=self.features)
+            unique_groups, n_samples_arr = np.unique(rand_idx, return_counts=True)
+            cont_samples = np.hstack([self.joint_dist[tuple(groups[unique_groups[i]])][1].resample(n_samples_arr[i])
+                                     if len(self.discrete_features) > 1 else
+                                     self.joint_dist[groups[unique_groups[i]]][1].resample(n_samples_arr[i])
+                                     for i in range(len(unique_groups))])
+            disc_samples = groups[np.repeat(unique_groups, n_samples_arr)].T
+            samples = np.vstack([disc_samples,cont_samples])
+        sampled_df = pd.DataFrame(samples.T, columns=self.features)
 
         if self.type == 'm':
             sampled_df[self.discrete_features] = sampled_df[self.discrete_features].astype('int')
@@ -166,7 +168,7 @@ if __name__ == '__main__':
     print probfunc.joint_dist
     print probfunc.compute_ll(test)
     print probfunc.compute_ll(test)
-    print probfunc.sample(2)
+    print probfunc.sample(5)
     print "---------------------------"
     test = pd.DataFrame({"d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
     prep_res = IntermediateResults(test)
