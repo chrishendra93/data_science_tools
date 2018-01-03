@@ -10,7 +10,7 @@ def convert_edge_list_to_dict(edge_list, features):
     return edge_dict
 
 
-def create_dependencies_dict(graph_dict, features, label_var):
+def create_dependencies_dict(graph_dict, features, label_var, root=[]):
     def convert_graph_dict_to_dag(graph_dict, visited_vertices, dag, vertex):
         if vertex not in visited_vertices:
             visited_vertices.append(vertex)
@@ -22,10 +22,19 @@ def create_dependencies_dict(graph_dict, features, label_var):
                         dag[vertex].add(child)
                     convert_graph_dict_to_dag(graph_dict, visited_vertices, dag, child)
     dag = {}
-    root = graph_dict.keys()[0]
+    root = graph_dict.keys()[0] if not root else root
     convert_graph_dict_to_dag(graph_dict, [], dag, root)
     parents_list = {feature: [] for feature in features}
     for par, children in dag.iteritems():
         for child in children:
             parents_list[child].append(par)
     return parents_list
+
+
+def merge_dependencies_dict(dep_dict_l, dep_dict_r):
+    for child, par_list in dep_dict_l.iteritems():
+        if child in dep_dict_r:
+            dep_dict_r[child].extend(par_list)
+        else:
+            dep_dict_r[child] = par_list
+    return dep_dict_r

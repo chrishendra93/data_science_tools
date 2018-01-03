@@ -1,5 +1,4 @@
 from classifiers.bayesian_network.bayesian_network import BayesianNetwork
-from classifiers.bayesian_network.node import Node
 from common_miscs.graph_utils.kruskal import Kruskal
 from common_miscs.graph_utils.graph_preprocessing import convert_mst_to_edge_list, convert_edge_list_to_dict
 from common_miscs.graph_utils.graph_preprocessing import create_dependencies_dict
@@ -11,18 +10,17 @@ class ChowLiuTree(BayesianNetwork):
     def __init__(self):
         super(ChowLiuTree, self).__init__()
 
-    def fit(self, X, y, graph={}, features_type={}):
-        super(ChowLiuTree, self).fit(X, y, graph, features_type)
+    def fit(self, X, y, graph={}, features_type={}, root=[], intermediate_results=None):
+        self.init_vars(X, y, graph, features_type, intermediate_results=intermediate_results)
         if len(graph) == 0:
             vertices, edges = self.construct_mi_graphs()
             mst = Kruskal({"vertices": vertices, "edges": edges}, mode="max").get_mst()
             edge_list = convert_mst_to_edge_list(mst)
             graph_dict = convert_edge_list_to_dict(edge_list, self.features)
-            self.graph = create_dependencies_dict(graph_dict, self.features, self.class_label)
-        self.nodes = {var: Node(self.training_df, var, par, self.intermediate_results, self.features_type)
-                      for var, par in self.graph.iteritems()}
-        for _, node in self.nodes.iteritems():
-            node.fit()
+            self.graph = create_dependencies_dict(graph_dict, self.features, self.class_label, root=root)
+        super(ChowLiuTree, self).fit(X, y, graph=self.graph, features_type=features_type,
+                                     intermediate_results=self.intermediate_results)
+        return self
 
     def construct_mi_graphs(self):
         vertices = self.features
