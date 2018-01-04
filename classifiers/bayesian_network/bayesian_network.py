@@ -50,7 +50,7 @@ class BayesianNetwork(object):
         self.init = True
 
     def compute_entropy(self, X, n_samples=1000):
-        dist = self.intermediate_results.retrieve_prob_func(X)
+        dist = self.intermediate_results.retrieve_joint_dist(X)
         samples = dist.sample(n_samples)
         return -1 * np.mean(dist.compute_ll(samples))
 
@@ -58,14 +58,18 @@ class BayesianNetwork(object):
         ''' compute I(X; Y) based on the training_df '''
         ''' X and Y must be a list of string '''
 
-        joint_dist = self.intermediate_results.retrieve_prob_func(X + Y)
-        marginal_dist_X = self.intermediate_results.retrieve_prob_func(X)
-        marginal_dist_Y = self.intermediate_results.retrieve_prob_func(Y)
-
+        joint_dist = self.intermediate_results.retrieve_joint_dist(X + Y)
+        marginal_dist_X = self.intermediate_results.retrieve_joint_dist(X)
+        marginal_dist_Y = self.intermediate_results.retrieve_joint_dist(Y)
+        sorted_vars = np.sort(X + Y).tolist()
+        X_idx = [sorted_vars.index(x) for x in X]
+        Y_idx = [sorted_vars.index(y) for y in Y]
         samples = joint_dist.sample(n_samples)
+        print samples.shape
+        print "-----"
         return np.mean(joint_dist.compute_ll(samples) -
-                       marginal_dist_X.compute_ll(samples[X]) -
-                       marginal_dist_Y.compute_ll(samples[Y]))
+                       marginal_dist_X.compute_ll(samples[:, X_idx]) -
+                       marginal_dist_Y.compute_ll(samples[:, Y_idx]))
 
     def compute_conditional_mi(self, X, Y, Z):
         ''' compute I(X;Y|Z)'''

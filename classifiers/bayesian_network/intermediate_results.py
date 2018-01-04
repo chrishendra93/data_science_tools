@@ -1,4 +1,4 @@
-from classifiers.bayesian_network.prob_func import ProbFunc
+from classifiers.bayesian_network.joint_dist import JointDist
 
 
 class IntermediateResults(object):
@@ -31,12 +31,8 @@ class IntermediateResults(object):
 
         return compute
 
-    @_compute_dependency
-    def retrieve_groups(self, features):
-        return self.training_df.groupby(features)
-
     @_reorder_compute_dependency
-    def retrieve_prob_func(self, features):
-        prob_func = ProbFunc(self.training_df, features, self, features_type=self.features_type)
+    def retrieve_joint_dist(self, features):
+        prob_func = JointDist(self.training_df[features], features, self, features_type=self.features_type)
         prob_func.fit()
         return prob_func

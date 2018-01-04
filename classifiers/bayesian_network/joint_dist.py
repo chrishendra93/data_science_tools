@@ -9,27 +9,29 @@ class JointDist(object):
     def __init__(self, X, features, intermediate_results, features_type=[]):
 
         ''' prob func evaluates joint distribution of variables '''
-        ''' three types of probfunc, mixed, discrete, continuous '''
+        ''' three types of JointDist, mixed, discrete, continuous '''
         ''' features_type is a dictionary of feature in features and its type, i.e c or d'''
         ''' c is continuous and d is discrete'''
         ''' joint dist will store every computation as numpy array'''
         ''' and convert features name into indices '''
-        assert len(self.features) != 0
+        assert len(features) != 0
 
         self.intermediate_results = intermediate_results
         self.features = features
 
         self.features_idx = self.assign_features_idx()
-        self.training_data = self.reformat_data_input(X)
-
         self.features_type = features_type
+
         self.continuous_features, self.discrete_features = self.assign_features_type()
         self.type = self.assign_dist_type()
 
-        self.continuous_ordering = self.assign_features_ordering(self.continuous_features)
-        self.discrete_ordering = self.assign_features_ordering(self.discrete_features)
+        self.continuous_ordering = np.arange(0, len(self.continuous_features))
+        self.discrete_ordering = np.arange(len(self.continuous_features), len(self.features))
+        self.reverse_idx = [self.features_idx[feature] for feature in self.continuous_features + self.discrete_features]
 
-        self.features_ordering = self.continuous_ordering + self.discrete_ordering
+        self.features_ordering = self.assign_features_ordering(self.continuous_features) + \
+            self.assign_features_ordering(self.discrete_features)
+
         self.training_data = self.reorder_cols(self.reformat_data_input(X), self.features_ordering)
 
         self.discrete_partitions = {}
@@ -40,13 +42,19 @@ class JointDist(object):
 
     def reformat_data_input(self, X):
         if isinstance(X, pd.DataFrame):
-            assert len(X.columns) == len(self.features)
-            return X[self.features].values
+            if len(self.features) == 1:
+                return X[self.features].values.reshape(-1, 1)
+            else:
+                return X[self.features].values
         elif isinstance(X, np.ndarray):
-            ''' if the input type is numpy array, we assume that it matches the features '''
-            ''' the numpy array must be of shape (n_dim, n_samples) '''
-            assert X.shape[1] == len(self.features)
-            return X
+            ''' if the input type is numpy array, we assume that it matches the features dim '''
+            ''' the numpy array must be of shape (n_samples, n_dim) '''
+            assert len(X.shape) == 2
+            if X.shape[0] == 1:
+                return X.reshape(-1, 1)
+            else:
+                assert X.shape[1] == len(self.features)
+                return X
         elif isinstance(X, pd.Series):
             return X.values
         else:
@@ -83,20 +91,23 @@ class JointDist(object):
         assert isinstance(features_order, np.ndarray) or isinstance(features_order, list)
 
         if len(features_order) == 1:
-            return arr[:, features_order[0]]
+            return arr
         else:
             return arr[:, features_order]
 
     def fit_gaussian_kde(self, X):
+        ''' X must be a numpy array '''
         kde = []
-        dim = len(X.columns)
+        n_cols = X.shape[1] if len(X.shape) != 1 else X.shape[0]
+        n_rows = X.shape[0] if len(X.shape) != 1 else 1
+        min_rowcol = np.min([n_cols, n_rows])
         mat = X
         while True:
             try:
-                kde = gaussian_kde(mat.values.T, bw_method='silverman')
+                kde = gaussian_kde(mat.T, bw_method='silverman')
             except Exception:
                 '''in case of singular matrix, add gaussian noise to its principal diagonal'''
-                mat = X.iloc[0:dim, 0:dim] + np.diag(np.random.randn(dim))
+                mat = X[0:min_rowcol, 0:min_rowcol] + np.diag(np.random.randn(min_rowcol))
                 continue
             break
         return kde
@@ -105,18 +116,25 @@ class JointDist(object):
         if self.type == 'c':
             self.joint_dist = self.fit_gaussian_kde(self.training_data)
         elif self.type == 'd':
-            grouped_df = self.intermediate_results.retrieve_groups(self.features)
-            for group, df in grouped_df:
-                prob = len(df) / float(len(self.training_data))
+            grouped_X = npi.group_by(self.training_data)
+            keys = grouped_X.unique
+            vals = grouped_X.split(self.training_data)
+            for i in range(len(keys)):
+                group = int(keys[i]) if len(self.discrete_features) == 1 else \
+                    tuple(map(lambda x: int(x), keys[i]))
+                prob = len(vals[i]) / float(len(self.training_data))
                 self.joint_dist[group] = prob
         else:
             ''' the key for the joint distribution will be a tuple of the parent values'''
             ''' while the values will be a tuple of the probability and the kde of the continuous variables'''
-            grouped_df = self.intermediate_results.retrieve_groups(self.discrete_features)
-            for group, df in grouped_df:
-                X = df[self.continuous_features]
-                kde = self.fit_gaussian_kde(X)
-                prob = len(df) / float(len(self.training_df))
+            grouped_X = npi.group_by(self.training_data[:, self.discrete_ordering])
+            keys = grouped_X.unique
+            vals = grouped_X.split(self.training_data[:, self.continuous_ordering])
+            for i in range(len(keys)):
+                group = int(keys[i]) if len(self.discrete_features) == 1 else \
+                    tuple(map(lambda x: int(x), keys[i]))
+                kde = self.fit_gaussian_kde(vals[i])
+                prob = len(vals[i]) / float(len(self.training_data))
                 self.joint_dist[group] = (prob, kde)
 
     def compute_ll(self, obs):
@@ -126,7 +144,7 @@ class JointDist(object):
         else:
             if self.type == 'd':
                 if len(self.discrete_features) == 1:
-                    return np.array([self.joint_dist[query] for query in X])
+                    return np.array([self.joint_dist[query[0]] for query in X])
                 else:
                     return np.array([self.joint_dist[tuple(query)] for query in X])
             else:
@@ -136,7 +154,8 @@ class JointDist(object):
                 vals = grouped_X.split(X[:, self.continuous_ordering])
                 res = np.array([])
                 for i in range(len(keys)):
-                    group = keys[i] if len(self.discrete_features) == 1 else tuple(keys[i])
+                    group = int(keys[i]) if len(self.discrete_features) == 1 else \
+                        tuple(map(lambda x: int(x), keys[i]))
                     prob = self.joint_dist[group][0]
                     kde = self.joint_dist[group][1]
                     ll = prob + kde.logpdf(vals[i].T)
@@ -147,7 +166,7 @@ class JointDist(object):
     def sample(self, n_samples=1000):
         samples = []
         if self.type == 'c':
-            samples = self.joint_dist.resample(n_samples)
+            samples = self.joint_dist.resample(n_samples).T
         elif self.type == 'd':
             groups = np.array(self.joint_dist.keys())
             probs = np.array(self.joint_dist.values())
@@ -169,9 +188,66 @@ class JointDist(object):
                                      self.joint_dist[groups[unique_groups[i]]][1].resample(n_samples_arr[i])
                                      for i in range(len(unique_groups))])
             disc_samples = groups[np.repeat(unique_groups, n_samples_arr)].T
-            samples = np.vstack([disc_samples, cont_samples]).T
+            samples = np.vstack([cont_samples, disc_samples]).T
+        return samples[self.reverse_idx]
 
-        if self.type == 'm':
-            sampled_df[self.discrete_features] = sampled_df[self.discrete_features].astype('int')
 
-        return sampled_df
+if __name__ == '__main__':
+    from intermediate_results import IntermediateResults
+    ''' demo multiple discrete and continuous vars '''
+    test = pd.DataFrame({"a": np.arange(9), "b": [0 if i < 5 else 1 for i in range(9)],
+                         "c": np.random.randn(9)})
+    prep_res = IntermediateResults(test)
+    joint_dist = JointDist(test, ["a", "b", "c"], prep_res, {"a": "c", "b": "d"})
+    print joint_dist.features
+    print joint_dist.discrete_features
+    print joint_dist.continuous_features
+    print joint_dist.features_type
+    print joint_dist.type
+    joint_dist.fit()
+    print joint_dist.joint_dist
+    print joint_dist.features_ordering
+    print joint_dist.compute_ll(test)
+    print "---------------------------"
+    test = pd.DataFrame({"a": np.arange(9), "b": [0 if i < 5 else 1 for i in range(9)],
+                         "c": np.random.randn(9), "d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
+    prep_res = IntermediateResults(test)
+    joint_dist = JointDist(test, ["a", "b", "c", "d"], prep_res, {"a": "c", "b": "d", "d": "d"})
+    print joint_dist.features
+    print joint_dist.discrete_features
+    print joint_dist.continuous_features
+    print joint_dist.features_type
+    print joint_dist.type
+    joint_dist.fit()
+    print joint_dist.joint_dist
+    print joint_dist.compute_ll(test)
+    print joint_dist.compute_ll(test)
+    print joint_dist.sample(5)
+    print "---------------------------"
+    test = pd.DataFrame({"d": [0, 1, 0, 1, 0, 1, 0, 1, 0]})
+    prep_res = IntermediateResults(test)
+    joint_dist = JointDist(test, ["d"], prep_res, {"d": "d"})
+    print joint_dist.features
+    print joint_dist.discrete_features
+    print joint_dist.continuous_features
+    print joint_dist.features_type
+    print joint_dist.type
+    joint_dist.fit()
+    print joint_dist.joint_dist
+    print joint_dist.compute_ll(test)
+    print joint_dist.sample(2)
+    print "---------------------------"
+    test = pd.DataFrame({"a": np.arange(9),
+                         "c": np.random.randn(9)})
+    prep_res = IntermediateResults(test)
+    joint_dist = JointDist(test, ["a", "c"], prep_res, {"a": "c"})
+    print joint_dist.features
+    print joint_dist.discrete_features
+    print joint_dist.continuous_features
+    print joint_dist.features_type
+    print joint_dist.type
+    joint_dist.fit()
+    print joint_dist.joint_dist
+    print joint_dist.compute_ll(test)
+    print joint_dist.sample(3)
+    print "---------------------------"

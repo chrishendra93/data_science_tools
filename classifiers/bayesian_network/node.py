@@ -36,18 +36,19 @@ class Node(object):
         self.marginal_dist = []
 
     def fit(self):
-        self.joint_dist = self.intermediate_results.retrieve_prob_func(self.feature_parents + self.feature_name)
+        self.joint_dist = self.intermediate_results.retrieve_joint_dist(self.feature_parents + self.feature_name)
 
         if len(self.feature_parents) != 0:
-            self.par_dist = self.intermediate_results.retrieve_prob_func(self.feature_parents)
-            self.marginal_dist = self.intermediate_results.retrieve_prob_func(self.feature_name)
+            self.par_dist = self.intermediate_results.retrieve_joint_dist(self.feature_parents)
+            self.marginal_dist = self.intermediate_results.retrieve_joint_dist(self.feature_name)
 
         else:
             self.marginal_dist = self.joint_dist
 
     def compute_ll(self, X):
-        return self.joint_dist.compute_ll(X) - \
-            self.par_dist.compute_ll(X) if len(self.feature_parents) != 0 else self.marginal_dist.compute_ll(X)
+        return self.joint_dist.compute_ll(X[self.feature_name + self.feature_parents]) - \
+            self.par_dist.compute_ll(X[self.feature_parents]) if len(self.feature_parents) != 0 \
+            else self.marginal_dist.compute_ll(X[self.feature_name])
 
 
 def convert_features_to_list(features):
