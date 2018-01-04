@@ -144,9 +144,9 @@ class JointDist(object):
         else:
             if self.type == 'd':
                 if len(self.discrete_features) == 1:
-                    return np.array([self.joint_dist[query[0]] for query in X])
+                    return np.log([self.joint_dist[query[0]] for query in X])
                 else:
-                    return np.array([self.joint_dist[tuple(query)] for query in X])
+                    return np.log([self.joint_dist[tuple(query)] for query in X])
             else:
                 grouped_X = npi.group_by(X[:, self.discrete_ordering])
                 keys = grouped_X.unique
@@ -156,11 +156,10 @@ class JointDist(object):
                 for i in range(len(keys)):
                     group = int(keys[i]) if len(self.discrete_features) == 1 else \
                         tuple(map(lambda x: int(x), keys[i]))
-                    prob = self.joint_dist[group][0]
+                    log_prob_disc = np.log(self.joint_dist[group][0])
                     kde = self.joint_dist[group][1]
-                    ll = prob + kde.logpdf(vals[i].T)
+                    ll = log_prob_disc + kde.logpdf(vals[i].T)
                     res = np.append(res, ll)
-
                 return res[idx]
 
     def sample(self, n_samples=1000):

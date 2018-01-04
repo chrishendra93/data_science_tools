@@ -65,8 +65,6 @@ class BayesianNetwork(object):
         X_idx = [sorted_vars.index(x) for x in X]
         Y_idx = [sorted_vars.index(y) for y in Y]
         samples = joint_dist.sample(n_samples)
-        print samples.shape
-        print "-----"
         return np.mean(joint_dist.compute_ll(samples) -
                        marginal_dist_X.compute_ll(samples[:, X_idx]) -
                        marginal_dist_Y.compute_ll(samples[:, Y_idx]))

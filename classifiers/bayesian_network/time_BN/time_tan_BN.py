@@ -89,7 +89,7 @@ if __name__ == '__main__':
     test_df = pd.DataFrame({"a_0": np.random.randn(3000), "b_0": np.random.randn(3000),
                             "a_1": np.random.randn(3000), "b_1": np.random.randn(3000),
                             "a_2": np.random.randn(3000), "b_2": np.random.randn(3000),
-                            "class_label": np.append(np.ones(1500), np.zeros(1500))})
+                            "class_label": np.random.choice([0, 1], size=3000, p=[0.7, 0.3])})
     X, y = test_df[["a_0", "a_1", "a_2", "b_0", "b_1", "b_2"]], test_df["class_label"]
     time_bn = TimeTANBN()
     import time
@@ -99,5 +99,7 @@ if __name__ == '__main__':
     print "training time : " + str(end - start)
     print time_bn.graph
     print time_bn.compute_ll(test_df)
+    print "----------------------------"
+    print "testing predict function"
     pred = time_bn.predict(X)
     print pred
