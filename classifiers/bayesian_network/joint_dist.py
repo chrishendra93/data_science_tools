@@ -1,4 +1,5 @@
 import numpy as np
+import numpy_indexed as npi
 import pandas as pd
 from scipy.stats import gaussian_kde
 
@@ -123,23 +124,25 @@ class JointDist(object):
         if self.type == 'c':
             return self.joint_dist.logpdf(X.T)
         else:
-            if len(self.discrete_features) == 1:
-                queries = X[:, self.discrete_ordering[0]]
-            else:
-                queries = X[:, self.discrete_ordering].apply(lambda x: tuple(x), axis=1)
-            X = X.assign(queries=queries)
             if self.type == 'd':
-                return np.array([self.joint_dist[query] for query in X.queries])
+                if len(self.discrete_features) == 1:
+                    return np.array([self.joint_dist[query] for query in X])
+                else:
+                    return np.array([self.joint_dist[tuple(query)] for query in X])
             else:
-                grouped_X = X.groupby("queries")
-                res = []
-                for group, df in grouped_X:
-                    idx = df.index
+                grouped_X = npi.group_by(X[:, self.discrete_ordering])
+                keys = grouped_X.unique
+                idx = grouped_X.inverse
+                vals = grouped_X.split(X[:, self.continuous_ordering])
+                res = np.array([])
+                for i in range(len(keys)):
+                    group = keys[i] if len(self.discrete_features) == 1 else tuple(keys[i])
+                    prob = self.joint_dist[group][0]
                     kde = self.joint_dist[group][1]
-                    ll = kde.logpdf(df[self.continuous_features].values.T)
-                    res.append(pd.Series(ll, index=idx))
+                    ll = prob + kde.logpdf(vals[i].T)
+                    res = np.append(res, ll)
 
-                return pd.concat(res).sort_index()
+                return res[idx]
 
     def sample(self, n_samples=1000):
         samples = []
