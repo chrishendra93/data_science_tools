@@ -27,10 +27,9 @@ class JointDist(object):
 
         self.continuous_ordering = np.arange(0, len(self.continuous_features))
         self.discrete_ordering = np.arange(len(self.continuous_features), len(self.features))
-        self.reverse_idx = [self.features_idx[feature] for feature in self.continuous_features + self.discrete_features]
+        self.reverse_idx = self.assign_reverse_idx()
 
-        self.features_ordering = self.assign_features_ordering(self.continuous_features) + \
-            self.assign_features_ordering(self.discrete_features)
+        self.features_ordering = self.assign_features_ordering()
 
         self.training_data = self.reorder_cols(self.reformat_data_input(X), self.features_ordering)
 
@@ -73,7 +72,7 @@ class JointDist(object):
         else:
             continuous_features = self.features
 
-        return continuous_features, discrete_features
+        return sorted(continuous_features), sorted(discrete_features)
 
     def assign_dist_type(self):
         if len(self.continuous_features) != 0 and len(self.discrete_features) != 0:
@@ -83,8 +82,9 @@ class JointDist(object):
         else:
             return 'c'
 
-    def assign_features_ordering(self, features):
-        return [self.features_idx[feature] for feature in features]
+    def assign_features_ordering(self):
+        ordered_features = self.continuous_features + self.discrete_features
+        return [self.features_idx[feature] for feature in ordered_features]
 
     def reorder_cols(self, arr, features_order):
         assert isinstance(arr, np.ndarray)
@@ -94,6 +94,12 @@ class JointDist(object):
             return arr
         else:
             return arr[:, features_order]
+
+    def assign_reverse_idx(self):
+        rev_init_idx = {idx: feature for feature, idx in self.features_idx.iteritems()}
+        features = self.continuous_features + self.discrete_features
+        features_ordering = {features[i]: i for i in range(len(features))}
+        return [features_ordering[rev_init_idx[i]] for i in range(len(self.features))]
 
     def fit_gaussian_kde(self, X):
         ''' X must be a numpy array '''
@@ -108,6 +114,7 @@ class JointDist(object):
             except Exception:
                 '''in case of singular matrix, add gaussian noise to its principal diagonal'''
                 mat = X[0:min_rowcol, 0:min_rowcol] + np.diag(np.random.randn(min_rowcol))
+                print "to infinity and beyond"
                 continue
             break
         return kde
@@ -188,7 +195,7 @@ class JointDist(object):
                                      for i in range(len(unique_groups))])
             disc_samples = groups[np.repeat(unique_groups, n_samples_arr)].T
             samples = np.vstack([cont_samples, disc_samples]).T
-        return samples[self.reverse_idx]
+        return samples[:, self.reverse_idx]
 
 
 if __name__ == '__main__':

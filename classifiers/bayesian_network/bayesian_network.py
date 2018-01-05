@@ -55,19 +55,25 @@ class BayesianNetwork(object):
         return -1 * np.mean(dist.compute_ll(samples))
 
     def compute_mi(self, X, Y, n_samples=1000):
+
         ''' compute I(X; Y) based on the training_df '''
         ''' X and Y must be a list of string '''
 
         joint_dist = self.intermediate_results.retrieve_joint_dist(X + Y)
         marginal_dist_X = self.intermediate_results.retrieve_joint_dist(X)
         marginal_dist_Y = self.intermediate_results.retrieve_joint_dist(Y)
-        sorted_vars = np.sort(X + Y).tolist()
-        X_idx = [sorted_vars.index(x) for x in X]
-        Y_idx = [sorted_vars.index(y) for y in Y]
+        sorted_vars = sorted(X + Y)
+        X_idx = [sorted_vars.index(x) for x in sorted(X)]
+        Y_idx = [sorted_vars.index(y) for y in sorted(Y)]
         samples = joint_dist.sample(n_samples)
-        return np.mean(joint_dist.compute_ll(samples) -
-                       marginal_dist_X.compute_ll(samples[:, X_idx]) -
-                       marginal_dist_Y.compute_ll(samples[:, Y_idx]))
+        try:
+            return np.mean(joint_dist.compute_ll(samples) -
+                           marginal_dist_X.compute_ll(samples[:, X_idx]) -
+                           marginal_dist_Y.compute_ll(samples[:, Y_idx]))
+        except Exception:
+            print X_idx, Y_idx, X, Y
+            print samples
+            raise ValueError()
 
     def compute_conditional_mi(self, X, Y, Z):
         ''' compute I(X;Y|Z)'''
